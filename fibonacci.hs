@@ -8,3 +8,11 @@ fibHelp 0 a _ = a
 fibHelp n a b = fibHelp (n-1) b (a+b)
 
 fib n = fibHelp n 0 1
+
+
+fibgen :: Integer -> Integer -> [Integer]
+fibgen a b = a:(fibgen b (a+b))
+
+fibs' = fibgen 0 1
+
+fibs = 0:1:(zipWith (+) fibs (tail fibs))
