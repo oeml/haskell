@@ -27,9 +27,34 @@ concat'' [x]      = x
 concat'' (x:y:xs) = concat'' ((concat' x y):xs)
 
 
-fmapHelper :: (a -> b) -> [a] -> [b] -> [b]
-fmapHelper _ [] ready   = ready
-fmapHelper f (x:xs) ready = fmapHelper f xs (ready ++ [f x])
+mapHelper :: (a -> b) -> [a] -> [b] -> [b]
+mapHelper _ [] ready     = ready
+mapHelper f (x:xs) ready = mapHelper f xs (ready ++ [f x])
 
-fmap' :: (a -> b) -> [a] -> [b]
-fmap' f (x:xs) = fmapHelper f xs [f x]
+map' :: (a -> b) -> [a] -> [b]
+map' f (x:xs) = mapHelper f xs [f x]
+
+
+boolean :: [a] -> [[a]]
+boolean []     = [[]]
+boolean (x:xs) = let ys = boolean xs in ys ++ (map (x:) ys)
+
+
+filter' :: (a -> Bool) -> [a] -> [a]
+filter' _ [] = []
+filter' f (x:xs) = let rest = filter' f xs in if f x then x:rest else rest
+
+
+down 0 = Nothing
+down x = Just (x-1,x)
+
+unfold' :: (a -> Maybe (a,b)) -> a -> [b]
+unfold' f x = maybe [] (\(u,v) -> v:(unfold' f u)) (f x)
+
+
+data List' a = Nil
+             | Cons a (List' a) deriving (Show)
+
+mapL :: (a -> b) -> List' a -> List' b
+mapL _ Nil         = Nil
+mapL f (Cons x xs) = Cons (f x) (mapL f xs)
