@@ -1,3 +1,8 @@
+module Trie
+( trieBuild
+, trieGet
+) where
+
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 
