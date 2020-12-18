@@ -6,6 +6,13 @@ import Data.List as L (unfoldr, stripPrefix, find)
 import Data.Map as M (Map, fromList, lookup)
 import Data.Maybe (isJust)
 import Control.Monad (join)
+import Control.Exception
+
+data ParsingException
+  = IllegalCharacter String
+  deriving (Show)
+
+instance Exception ParsingException
 
 data Token = TokenOpenPar
            | TokenClosePar
@@ -61,8 +68,16 @@ charCategoryTokenAcceptors = map makeCharCategoryTokenAcceptor charCategoryToken
 
 tokenAcceptors = fixedTokenAcceptors ++ charCategoryTokenAcceptors
 
+isToken :: Maybe (Token, String) -> Bool
+isToken Nothing               = False
+isToken (Just (TokenAbs, "")) = True
+isToken (Just (TokenAbs, _))  = False
+isToken mb                    = True
+
 acceptToken :: String -> Maybe (Token, String)
-acceptToken s = join $ find isJust $ map (\(f, g) -> fmap (first g) $ f s) tokenAcceptors
+acceptToken "" = Nothing
+acceptToken s  = if isJust res then res else (throw (IllegalCharacter s))
+  where res = join $ find isToken $ map (\(f, g) -> fmap (first g) $ f s) tokenAcceptors
 
 tokenize :: String -> [Token]
 tokenize = concat . map (unfoldr acceptToken) . words
