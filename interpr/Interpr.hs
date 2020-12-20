@@ -1,10 +1,17 @@
 {-# LANGUAGE TupleSections #-}
 
+module Interpr
+( BinOp(..)
+, UnOp(..)
+, unOpSemantics
+, binOpSemantics
+) where
+
 import Data.Fixed (mod')
 import Data.Bifunctor (first)
 import Data.Char (isAlpha, isDigit, isSpace)
 import Data.List as L (unfoldr, stripPrefix, find)
-import Data.Map as M (Map, fromList, lookup)
+import Data.Map as M (Map, fromList, lookup, (!))
 import Data.Maybe (isJust, fromJust)
 import Control.Monad (join)
 import Control.Exception
@@ -244,6 +251,4 @@ eval (ExUnary op ex) m = (M.lookup op unOpSemantics) <*> (eval ex m)
 eval (ExBinary op ex1 ex2) m = (M.lookup op binOpSemantics) <*> (eval ex1 m) <*> (eval ex2 m)
 
 evalHelper :: String -> Map String Double -> Maybe Double
-evalHelper s m = eval expr m
-  where expr = fromJust . parse . tokenize $ s
-
+evalHelper = eval . fromJust . parse . tokenize
