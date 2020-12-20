@@ -1,10 +1,11 @@
 {-# LANGUAGE TupleSections #-}
 
+import Data.Fixed (mod')
 import Data.Bifunctor (first)
 import Data.Char (isAlpha, isDigit, isSpace)
 import Data.List as L (unfoldr, stripPrefix, find)
 import Data.Map as M (Map, fromList, lookup)
-import Data.Maybe (isJust)
+import Data.Maybe (isJust, fromJust)
 import Control.Monad (join)
 import Control.Exception
 
@@ -23,7 +24,9 @@ data Token = TokenOpenPar
            | TokenPercent
            | TokenWedge
            | TokenAbs
-           | TokenInt Int
+           | TokenLn
+           | TokenRoot
+           | TokenDouble Double
            | TokenIdent String
   deriving (Show)
 
@@ -43,7 +46,9 @@ fixedTokenDescriptors = [
   ("/",    TokenSlash),
   ("%",    TokenPercent),
   ("^",    TokenWedge),
-  ("abs",  TokenAbs)
+  ("abs",  TokenAbs),
+  ("ln",   TokenLn),
+  ("rt",   TokenRoot)
   ]
 
 makeFixedTokenAcceptor :: FixedTokenDescriptor -> TokenAcceptor
@@ -53,7 +58,7 @@ fixedTokenAcceptors = map makeFixedTokenAcceptor fixedTokenDescriptors
 
 charCategoryTokenDescriptors :: [CharCategoryTokenDescriptor]
 charCategoryTokenDescriptors = [
-  (isDigit, TokenInt . read),
+  (or . ([isDigit, (== '.')] <*>) . (:[]), TokenDouble . read),
   (isAlpha, TokenIdent)
   ]
 
@@ -69,10 +74,14 @@ charCategoryTokenAcceptors = map makeCharCategoryTokenAcceptor charCategoryToken
 tokenAcceptors = fixedTokenAcceptors ++ charCategoryTokenAcceptors
 
 isToken :: Maybe (Token, String) -> Bool
-isToken Nothing               = False
-isToken (Just (TokenAbs, "")) = True
-isToken (Just (TokenAbs, _))  = False
-isToken mb                    = True
+isToken Nothing                = False
+isToken (Just (TokenAbs, ""))  = True
+isToken (Just (TokenAbs, _))   = False
+isToken (Just (TokenLn, ""))   = True
+isToken (Just (TokenLn, _))    = False
+isToken (Just (TokenRoot, "")) = True
+isToken (Just (TokenRoot, _))  = False
+isToken mb                     = True
 
 acceptToken :: String -> Maybe (Token, String)
 acceptToken "" = Nothing
@@ -84,6 +93,7 @@ tokenize = concat . map (unfoldr acceptToken) . words
 
 data UnOp = UnOpNegate
           | UnOpAbs
+          | UnOpLn
   deriving (Show, Eq, Ord)
 
 data BinOp = BinOpAdd
@@ -92,9 +102,10 @@ data BinOp = BinOpAdd
            | BinOpDiv
            | BinOpMod
            | BinOpPow
+           | BinOpRoot
   deriving (Show, Eq, Ord)
 
-data Expression = ExConst Int
+data Expression = ExConst Double
                 | ExVar String
                 | ExUnary UnOp Expression
                 | ExBinary BinOp Expression Expression
@@ -119,16 +130,18 @@ expectMultiplicativeOp _ = Nothing
 
 expectPowerOp :: BinOpExpectation
 expectPowerOp TokenWedge = Just BinOpPow
+expectPowerOp TokenRoot  = Just BinOpRoot
 expectPowerOp _ = Nothing
 
 expectUnOp :: Expectation UnOp
 expectUnOp TokenMinus = Just UnOpNegate
 expectUnOp TokenAbs = Just UnOpAbs
+expectUnOp TokenLn = Just UnOpLn
 expectUnOp _ = Nothing
 
-expectInt :: Expectation Int
-expectInt (TokenInt x) = Just x
-expectInt _ = Nothing
+expectDouble :: Expectation Double
+expectDouble (TokenDouble x) = Just x
+expectDouble _ = Nothing
 
 expectIdent :: Expectation String
 expectIdent (TokenIdent v) = Just v
@@ -186,7 +199,7 @@ parseBareTerm :: Parser Expression
 parseBareTerm = parseAlternatives [parseConst, parseVar, parseSubexpression]
 
 parseConst :: Parser Expression
-parseConst = (fmap (first ExConst)) . (parseSingleToken expectInt)
+parseConst = (fmap (first ExConst)) . (parseSingleToken expectDouble)
 
 parseVar :: Parser Expression
 parseVar = (fmap (first ExVar)) . (parseSingleToken expectIdent)
@@ -206,25 +219,31 @@ filterMaybe p m@(Just x)
 parse :: [Token] -> Maybe Expression
 parse = fmap (fst) . filterMaybe (null . snd) . parseSum
 
-unOpSemantics :: Map UnOp (Int -> Int)
+unOpSemantics :: Map UnOp (Double -> Double)
 unOpSemantics = fromList [
     (UnOpNegate, negate),
-    (UnOpAbs, abs)
+    (UnOpAbs, abs),
+    (UnOpLn, log)
   ]
 
-binOpSemantics :: Map BinOp (Int -> Int -> Int)
+binOpSemantics :: Map BinOp (Double -> Double -> Double)
 binOpSemantics = fromList [
     (BinOpAdd, (+)),
     (BinOpSub, (-)),
     (BinOpMul, (*)),
-    (BinOpDiv, div),
-    (BinOpMod, mod),
-    (BinOpPow, (^))
+    (BinOpDiv, (/)),
+    (BinOpMod, mod'),
+    (BinOpPow, (**)),
+    (BinOpRoot, (\ n x -> x ** (1 / n)))
   ]
 
-eval :: Expression -> Map String Int -> Maybe Int
+eval :: Expression -> Map String Double -> Maybe Double
 eval (ExConst x) _ = Just x
 eval (ExVar v) m = M.lookup v m
 eval (ExUnary op ex) m = (M.lookup op unOpSemantics) <*> (eval ex m)
 eval (ExBinary op ex1 ex2) m = (M.lookup op binOpSemantics) <*> (eval ex1 m) <*> (eval ex2 m)
+
+evalHelper :: String -> Map String Double -> Maybe Double
+evalHelper s m = eval expr m
+  where expr = fromJust . parse . tokenize $ s
 
