@@ -45,3 +45,13 @@ Simple projects in Haskell:
       *Main> runRpn [RpnBinOp BinOpAdd, RpnCtxJmpIfOp, RpnPush 1, RpnJmpOp 2, RpnPush 2, RpnBinOp BinOpMul] (0, [-1,2,3,5])
       [5.0]
       ```
+- [Huffman archiver](huffman). Encodes bytes from a file via Huffman encoding. You can use it like so:
+  - To archive:
+    ```
+    ./huffman -c input.bin archive.bin 
+    ```
+  - To extract from archive:
+    ```
+    ./huffman -x archive.bin output.bin
+    ```
+  
