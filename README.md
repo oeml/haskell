@@ -55,4 +55,8 @@ Simple projects in Haskell:
     ./huffman -x archive.bin output.bin
     ```
 - [Register Machine](register/RegisterMachine.hs) via ```State``` monad. Usage example [here](register/main.hs).
-  
+- [Copy and replace](copy-replace/main.hs). Copies contents of a text file, replacing a substring. Example 
+  (replaces all occurencies of "world" in the input file with "haskell" and writes to output):
+  ```
+  ./cprpl input.txt output.txt world haskell
+  ```
