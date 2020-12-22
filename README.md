@@ -54,4 +54,5 @@ Simple projects in Haskell:
     ```
     ./huffman -x archive.bin output.bin
     ```
+- [Register Machine](register/RegisterMachine.hs) via ```State``` monad. Usage example [here](register/main.hs).
   
